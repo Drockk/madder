@@ -20,3 +20,9 @@ set(CMAKE_CXX_SCAN_FOR_MODULES OFF CACHE BOOL "Disable C++ module scanning")
 # Dependencies
 # =============================================================================
 include(cmake/dependencies.cmake)
+
+# =============================================================================
+# Subdirectories
+# =============================================================================
+add_subdirectory(examples)
+add_subdirectory(madder)

@@ -32,3 +32,5 @@ CPMAddPackage(
 # liburing - Linux io_uring library
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(LIBURING REQUIRED liburing)
+
+include(${CMAKE_CURRENT_LIST_DIR}/asio.cmake)
