@@ -7,27 +7,6 @@
 #include <thread>
 #include <vector>
 
-struct asio_context {
-  asio::io_context &ctx;
-
-  auto get_scheduler() const noexcept { return *this; }
-
-  auto schedule() const noexcept {
-    struct io_schedule_op {
-      asio::io_context &ctx;
-    };
-    return io_schedule_op{ctx};
-  }
-
-  bool operator==(const asio_context &other) const noexcept {
-    return &ctx == &other.ctx;
-  }
-
-  bool operator!=(const asio_context &other) const noexcept {
-    return !(*this == other);
-  }
-};
-
 auto handle_client(asio::ip::tcp::socket t_socket) -> asio::awaitable<void> {
   try {
     while (true) {
