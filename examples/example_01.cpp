@@ -1,43 +1,80 @@
 #include <asio.hpp>
-#include <execution>
 #include <coroutine>
 #include <iostream>
-#include <memory>
+#include <print>
+#include <stdexec/execution.hpp>
+#include <string>
 #include <thread>
+#include <vector>
 
-struct async_task: std::suspend_always
-{
-    using promise_type = async_task;
-    async_task get_return_object() { return {}; }
-    void return_void() {}
-    void unhandled_exception() { std::terminate(); }
+struct asio_context {
+  asio::io_context &ctx;
+
+  auto get_scheduler() const noexcept { return *this; }
+
+  auto schedule() const noexcept {
+    struct io_schedule_op {
+      asio::io_context &ctx;
+    };
+    return io_schedule_op{ctx};
+  }
+
+  bool operator==(const asio_context &other) const noexcept {
+    return &ctx == &other.ctx;
+  }
+
+  bool operator!=(const asio_context &other) const noexcept {
+    return !(*this == other);
+  }
 };
 
-async_task handle_client(asio::ip::tcp::socket socket)
-{
+auto handle_client(asio::ip::tcp::socket t_socket) -> asio::awaitable<void> {
+  try {
+    while (true) {
+      std::array<char, 1024> buffer;
+      auto bytes_read = co_await t_socket.async_read_some(asio::buffer(buffer),
+                                                          asio::use_awaitable);
 
-}
+      if (bytes_read == 0) {
+        break; // Connection closed
+      }
 
-async_task run_server(asio::io_context& io_context, unsigned short port)
-{
-    asio::ip::tcp::acceptor acceptor(
-        io_context,
-        {asio::ip::tcp::v4(), port}
-    );
+      std::println("Received: {}", std::string(buffer.data(), bytes_read));
 
-    std::cout << "Serwer nasłuchuje na porcie " << port << std::endl;
-}
-
-int main()
-{
-    asio::io_context io_context;
-
-    auto server_task = run_server(io_context, 8080);
-
-    std::vector<std::jthread> threads;
-    for (int i = 0; i < std::thread::hardware_concurrency(); ++i) {
-        threads.emplace_back([&io_context] { io_context.run(); });
+      co_await asio::async_write(t_socket, asio::buffer(buffer, bytes_read),
+                                 asio::use_awaitable);
     }
 
-    return 0;
+  } catch (const std::exception &t_exception) {
+    std::println(std::cerr, "Client error: {}", t_exception.what());
+  }
+  co_return;
+}
+
+auto run_server(asio::io_context &t_io_context,
+                uint16_t t_port) -> asio::awaitable<void> {
+  asio::ip::tcp::acceptor acceptor(t_io_context, {asio::ip::tcp::v4(), t_port});
+
+  std::println("Server listening in port: {}", t_port);
+
+  while (true) {
+    auto socket = co_await acceptor.async_accept(asio::use_awaitable);
+
+    asio::co_spawn(socket.get_executor(), handle_client(std::move(socket)),
+                   asio::detached);
+  }
+  co_return;
+}
+
+int main() {
+  asio::io_context io_context;
+
+  asio::co_spawn(io_context, run_server(io_context, 8080), asio::detached);
+
+  std::vector<std::jthread> threads;
+  for (int i = 0; i < std::thread::hardware_concurrency(); ++i) {
+    threads.emplace_back([&io_context] { io_context.run(); });
+  }
+
+  return 0;
 }
