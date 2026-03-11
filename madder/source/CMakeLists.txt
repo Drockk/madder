@@ -1,4 +1,4 @@
 target_sources(madder
     PRIVATE
-        temp.cpp
+        madder/core/application.cpp
 )
