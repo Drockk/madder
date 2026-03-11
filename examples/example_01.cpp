@@ -2,11 +2,11 @@
 #include <coroutine>
 #include <iostream>
 #include <madder.hpp>
+#include <optional>
 #include <print>
 #include <stdexec/execution.hpp>
 #include <string>
-#include <thread>
-#include <vector>
+#include <functional>
 
 auto handle_client(asio::ip::tcp::socket t_socket) -> asio::awaitable<void> {
   try {
@@ -46,15 +46,29 @@ auto run_server(asio::io_context &t_io_context,
   co_return;
 }
 
-int main() {
-  asio::io_context io_context;
+struct HelloServer {};
 
-  asio::co_spawn(io_context, run_server(io_context, 8080), asio::detached);
-
-  std::vector<std::jthread> threads;
-  for (int i = 0; i < std::thread::hardware_concurrency(); ++i) {
-    threads.emplace_back([&io_context] { io_context.run(); });
+template <class Controller> class TcpServerPlugin {
+public:
+  auto init(asio::io_context &t_io_context) -> void {
+    m_io_context = t_io_context;
   }
 
+  auto run() -> void {
+    if (!m_io_context.has_value()) {
+      throw std::logic_error("TcpServerPlugin not initialized");
+    }
+
+    auto &io_context = m_io_context->get();
+    asio::co_spawn(io_context, run_server(io_context, 8080), asio::detached);
+  }
+
+private:
+  std::optional<std::reference_wrapper<asio::io_context>> m_io_context;
+};
+
+int main() {
+  madder::Application<TcpServerPlugin<HelloServer>> app;
+  app.run();
   return 0;
 }

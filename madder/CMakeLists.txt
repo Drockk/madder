@@ -13,10 +13,10 @@ target_link_libraries(madder
 
 target_include_directories(madder
     PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/madder/include
     PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/include/madder
+        ${CMAKE_CURRENT_SOURCE_DIR}/madder/include/madder
 )
 
-add_subdirectory(include)
-add_subdirectory(source)
+add_subdirectory(madder/include)
+add_subdirectory(madder/source)
